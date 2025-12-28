@@ -1,8 +1,10 @@
 {
-  "name": "claude-ai-usage",
+  "name": "claude-usage-tracker",
+  "productName": "Claude Usage Tracker",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "1.0.0",
+  "description": "Desktop app for tracking Claude AI subscription usage limits",
+  "author": "Your Name",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
@@ -10,10 +12,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "date-fns": "^3.3.0",
+    "electron-store": "^8.2.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0",
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@types/node": "^20.11.0",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@typescript-eslint/eslint-plugin": "^7.1.1",

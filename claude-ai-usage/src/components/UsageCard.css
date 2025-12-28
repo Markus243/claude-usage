@@ -1,0 +1,354 @@
+/* =============================================
+   USAGE CARD - INSTRUMENT PANEL STYLE
+   ============================================= */
+
+.usage-card {
+  padding: 1.25rem;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+  animation: slideUp 0.4s ease-out backwards;
+}
+
+.usage-card:first-child {
+  animation-delay: 0.05s;
+}
+
+.usage-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+/* Subtle top accent line */
+.usage-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--card-accent, var(--accent-primary)),
+    transparent
+  );
+  opacity: 0.5;
+}
+
+/* Card variants */
+.usage-card.session {
+  --card-accent: var(--session-color);
+  --card-glow: var(--session-glow);
+}
+
+.usage-card.weekly {
+  --card-accent: var(--weekly-color);
+  --card-glow: var(--weekly-glow);
+}
+
+/* Status-based glow effect */
+.usage-card.critical {
+  border-color: rgba(239, 68, 68, 0.2);
+  box-shadow: inset 0 0 30px rgba(239, 68, 68, 0.05);
+}
+
+.usage-card.warning {
+  border-color: rgba(245, 158, 11, 0.15);
+}
+
+/* =============================================
+   CARD HEADER
+   ============================================= */
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.card-header h3 {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Status Badge */
+.status-badge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.status-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-badge.good {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--status-good);
+}
+
+.status-badge.good::before {
+  animation: pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 6px var(--status-good-glow);
+}
+
+.status-badge.warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--status-warning);
+}
+
+.status-badge.critical {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--status-critical);
+}
+
+.status-badge.critical::before {
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+/* =============================================
+   CARD CONTENT - GAUGE LAYOUT
+   ============================================= */
+
+.card-content {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* =============================================
+   CIRCULAR PROGRESS GAUGE
+   ============================================= */
+
+.circular-progress {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  flex-shrink: 0;
+}
+
+.circular-progress svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.progress-bg {
+  stroke: var(--bg-secondary);
+  opacity: 0.6;
+}
+
+.progress-fill {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 0 6px var(--card-glow, var(--accent-glow)));
+}
+
+.progress-fill.good {
+  stroke: var(--card-accent, var(--status-good));
+}
+
+.progress-fill.warning {
+  stroke: var(--status-warning);
+}
+
+.progress-fill.critical {
+  stroke: var(--status-critical);
+  animation: pulseStroke 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseStroke {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px var(--status-critical-glow));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px var(--status-critical-glow));
+  }
+}
+
+/* Progress Text */
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(0deg);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.percent-value {
+  font-family: var(--font-mono);
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.percent-sign {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 1px;
+}
+
+/* =============================================
+   USAGE DETAILS PANEL
+   ============================================= */
+
+.usage-details {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Reset Timer */
+.reset-info {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+}
+
+.reset-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.reset-value {
+  font-family: var(--font-mono);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+/* Usage Progress Bar */
+.usage-bar {
+  height: 5px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.625rem;
+  position: relative;
+}
+
+/* Inner shadow for depth */
+.usage-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.usage-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+/* Shine effect on bar */
+.usage-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  border-radius: 3px 3px 0 0;
+}
+
+.usage-bar-fill.good {
+  background: linear-gradient(90deg, var(--card-accent, var(--status-good)), var(--card-accent, var(--status-good)));
+  box-shadow: 0 0 10px var(--card-glow, var(--status-good-glow));
+}
+
+.usage-bar-fill.warning {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  box-shadow: 0 0 10px var(--status-warning-glow);
+}
+
+.usage-bar-fill.critical {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+  box-shadow: 0 0 10px var(--status-critical-glow);
+}
+
+/* Usage Stats */
+.usage-stats {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+
+/* =============================================
+   VARIANT-SPECIFIC COLORS
+   ============================================= */
+
+/* Session Card - Amber theme */
+.usage-card.session .progress-fill.good {
+  stroke: var(--session-color);
+}
+
+.usage-card.session .usage-bar-fill.good {
+  background: linear-gradient(90deg, #d97706, #fbbf24);
+  box-shadow: 0 0 10px var(--session-glow);
+}
+
+/* Weekly Card - Violet theme */
+.usage-card.weekly .progress-fill.good {
+  stroke: var(--weekly-color);
+}
+
+.usage-card.weekly .usage-bar-fill.good {
+  background: linear-gradient(90deg, #7c3aed, #a78bfa);
+  box-shadow: 0 0 10px var(--weekly-glow);
+}
+
+/* =============================================
+   LIGHT MODE ADJUSTMENTS
+   ============================================= */
+
+[data-theme='light'] .usage-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .progress-bg {
+  stroke: var(--bg-secondary);
+  opacity: 1;
+}
+
+[data-theme='light'] .usage-bar {
+  background: var(--bg-secondary);
+}
+
+[data-theme='light'] .usage-bar::before {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}

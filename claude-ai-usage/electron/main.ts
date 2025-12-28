@@ -1,68 +1,187 @@
-import { app, BrowserWindow } from 'electron'
-import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
-import path from 'node:path'
+// Electron main process entry point
+// Must use require for electron in CJS context
+const { app, BrowserWindow, Menu } = require('electron');
+const path = require('node:path');
 
-const require = createRequire(import.meta.url)
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+import { registerIPCHandlers, cleanupIPCHandlers } from './ipc/handlers';
+import { getTrayManager } from './tray/TrayManager';
+import { getAuthService } from './services/AuthService';
+import { getUsageService } from './services/UsageService';
+import { getStore } from './storage/SecureStore';
 
 // The built directory structure
-//
-// ├─┬─┬ dist
-// │ │ └── index.html
-// │ │
-// │ ├─┬ dist-electron
-// │ │ ├── main.js
-// │ │ └── preload.mjs
-// │
-process.env.APP_ROOT = path.join(__dirname, '..')
+const __dirname_resolved = __dirname;
+process.env.APP_ROOT = path.join(__dirname_resolved, '..');
 
-// 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
-export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
-export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
-export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
+export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
+export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
+export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
+  ? path.join(process.env.APP_ROOT, 'public')
+  : RENDERER_DIST;
 
-let win: BrowserWindow | null
+let mainWindow: typeof BrowserWindow | null = null;
 
 function createWindow() {
-  win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+  const store = getStore();
+  const windowState = store.getWindowState();
+  const settings = store.getSettings();
+
+  mainWindow = new BrowserWindow({
+    width: windowState.width,
+    height: windowState.height,
+    x: windowState.x,
+    y: windowState.y,
+    minWidth: 350,
+    minHeight: 500,
+    icon: path.join(process.env.VITE_PUBLIC!, 'electron-vite.svg'),
+    title: 'Claude Usage Tracker',
+    frame: true,
+    autoHideMenuBar: true, // Hide menu bar but allow access with Alt
+    show: !settings.startMinimized, // Don't show if starting minimized
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: path.join(__dirname_resolved, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
     },
-  })
+  });
 
-  // Test active push message to Renderer-process.
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', (new Date).toLocaleString())
-  })
+  // Remove the default menu completely
+  Menu.setApplicationMenu(null);
 
+  // Save window state on close/move/resize
+  mainWindow.on('close', (event: Event) => {
+    // Minimize to tray instead of closing
+    if (mainWindow && !(app as any).isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+      return;
+    }
+
+    // Save window state before closing
+    if (mainWindow) {
+      const bounds = mainWindow.getBounds();
+      store.setWindowState({
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+        isMaximized: mainWindow.isMaximized(),
+      });
+    }
+  });
+
+  mainWindow.on('resize', () => {
+    if (mainWindow && !mainWindow.isMaximized()) {
+      const bounds = mainWindow.getBounds();
+      store.setWindowState({ width: bounds.width, height: bounds.height });
+    }
+  });
+
+  mainWindow.on('move', () => {
+    if (mainWindow && !mainWindow.isMaximized()) {
+      const bounds = mainWindow.getBounds();
+      store.setWindowState({ x: bounds.x, y: bounds.y });
+    }
+  });
+
+  // Initialize system tray
+  const trayManager = getTrayManager();
+  trayManager.initialize(mainWindow);
+
+  // Register IPC handlers
+  registerIPCHandlers(mainWindow);
+
+  // Load the app
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL)
+    mainWindow.loadURL(VITE_DEV_SERVER_URL);
   } else {
-    // win.loadFile('dist/index.html')
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'))
+    mainWindow.loadFile(path.join(RENDERER_DIST, 'index.html'));
+  }
+
+  // Initialize services after window is ready
+  mainWindow.webContents.on('did-finish-load', async () => {
+    await initializeServices();
+  });
+}
+
+async function initializeServices() {
+  const authService = getAuthService();
+  const usageService = getUsageService();
+  const trayManager = getTrayManager();
+
+  // Check if user has valid session
+  const isAuthenticated = await authService.checkSession();
+
+  if (isAuthenticated) {
+    trayManager.setAuthState(true);
+    // Start polling for usage data
+    usageService.startPolling();
+  } else {
+    trayManager.setAuthState(false);
   }
 }
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-    win = null
-  }
-})
+// Prevent multiple instances
+const gotTheLock = app.requestSingleInstanceLock();
 
-app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
-  }
-})
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // Focus the main window if user tries to open another instance
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
 
-app.whenReady().then(createWindow)
+  // Handle app ready
+  app.whenReady().then(() => {
+    createWindow();
+  });
+
+  // Mark app as quitting when quit is triggered
+  app.on('before-quit', () => {
+    (app as any).isQuitting = true;
+  });
+
+  // Quit when all windows are closed (except on macOS)
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      // Clean up
+      const trayManager = getTrayManager();
+      trayManager.destroy();
+
+      const usageService = getUsageService();
+      usageService.stopPolling();
+
+      cleanupIPCHandlers();
+
+      app.quit();
+    }
+  });
+
+  app.on('activate', () => {
+    // On macOS re-create window when dock icon is clicked
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    } else if (mainWindow) {
+      mainWindow.show();
+    }
+  });
+
+  // Handle certificate errors (for development)
+  app.on('certificate-error', (event: Event, _webContents: any, _url: string, _error: any, _certificate: any, callback: Function) => {
+    // In development, ignore certificate errors
+    if (VITE_DEV_SERVER_URL) {
+      event.preventDefault();
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+}
