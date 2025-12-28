@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"c:\\\\dev\\\\claude-usage\\\\claude-ai-usage\" /B)",
+      "Bash(dir:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm run build:*)",
+      "Bash(node -e \"console.log\\(require\\(''electron''\\)\\)\")",
+      "Bash(cat:*)",
+      "Bash(taskkill:*)",
+      "Skill(frontend-design)",
+      "Skill(frontend-design:*)",
+      "Bash(git add:*)",
+      "Bash(git reset:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Claude Usage Tracker Electron app with enhanced UI\n\nFeatures:\n- System tray widget with usage percentage badge\n- Dashboard showing 5-hour session and weekly usage limits\n- Circular progress cards with status indicators\n- Login via Claude.ai with session cookie capture\n- Configurable alert thresholds \\(50%, 75%, 90%\\)\n- Light/dark theme support with system preference detection\n- Control Room aesthetic with JetBrains Mono + Plus Jakarta Sans fonts\n\nTechnical:\n- React + TypeScript + Vite + Electron\n- Zustand for state management\n- electron-store with safeStorage encryption\n- IPC communication between main and renderer\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix Claude API usage parsing\n\n- Parse five_hour.utilization and seven_day.utilization from /api/organizations/{id}/usage endpoint\n- Detect tier from organization.rate_limit_tier \\(e.g., default_claude_max_5x -> max5\\)\n- Use actual reset times from API response \\(resets_at fields\\)\n- Utilization is returned as percentage directly, no longer need to calculate\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git rm:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nProduction-ready cleanup with preloaded usage data\n\n- Clean up UsageService: remove debug logging and multiple endpoint attempts\n- Simplify to only use /api/organizations/{org_id}/usage endpoint\n- Add preloading: fetch usage data before showing window content\n- Add IPC event ''usage:preloaded'' for immediate data delivery to renderer\n- Add loading skeleton animation in Dashboard while data loads\n- Remove dist-electron build artifacts from git tracking\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}
