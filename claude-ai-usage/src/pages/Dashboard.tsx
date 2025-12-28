@@ -147,11 +147,16 @@ export function Dashboard() {
               </div>
             )}
           </>
+        ) : isLoading ? (
+          <div className="usage-cards loading-skeleton">
+            <div className="skeleton-card" />
+            <div className="skeleton-card" />
+          </div>
         ) : (
           <div className="no-data">
             <p>No usage data available</p>
             <button onClick={handleRefresh} disabled={isLoading}>
-              {isLoading ? 'Loading...' : 'Refresh'}
+              Refresh
             </button>
           </div>
         )}

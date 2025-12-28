@@ -103,11 +103,11 @@ function createWindow() {
 
   // Initialize services after window is ready
   mainWindow.webContents.on('did-finish-load', async () => {
-    await initializeServices();
+    await initializeServices(mainWindow);
   });
 }
 
-async function initializeServices() {
+async function initializeServices(window: typeof BrowserWindow) {
   const authService = getAuthService();
   const usageService = getUsageService();
   const trayManager = getTrayManager();
@@ -117,7 +117,15 @@ async function initializeServices() {
 
   if (isAuthenticated) {
     trayManager.setAuthState(true);
-    // Start polling for usage data
+
+    // Preload usage data immediately - fetch and send to renderer before starting polling
+    const usage = await usageService.fetchUsage();
+    if (usage && window.webContents) {
+      // Send preloaded data to renderer immediately
+      window.webContents.send('usage:preloaded', usage);
+    }
+
+    // Start polling for subsequent updates
     usageService.startPolling();
   } else {
     trayManager.setAuthState(false);

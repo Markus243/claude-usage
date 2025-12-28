@@ -106,6 +106,12 @@ export const useUsageStore = create<UsageState>((set) => ({
 
 // Subscribe to usage updates from main process
 if (typeof window !== 'undefined' && window.claudeUsage) {
+  // Listen for preloaded data (sent immediately on app start)
+  window.claudeUsage.usage.onPreloaded((usage) => {
+    useUsageStore.getState().setUsage(usage);
+  });
+
+  // Listen for regular updates during polling
   window.claudeUsage.usage.onUpdated((usage) => {
     useUsageStore.getState().setUsage(usage);
   });

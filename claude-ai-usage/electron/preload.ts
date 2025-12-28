@@ -27,6 +27,7 @@ export interface ClaudeUsageAPI {
     refresh: () => Promise<UsageData | null>;
     onUpdated: (callback: (usage: UsageData) => void) => () => void;
     onError: (callback: (error: { error: string }) => void) => () => void;
+    onPreloaded: (callback: (usage: UsageData) => void) => () => void;
   };
 
   // Settings
@@ -93,6 +94,7 @@ const api: ClaudeUsageAPI = {
     refresh: () => ipcRenderer.invoke(IPC_CHANNELS.USAGE_REFRESH),
     onUpdated: (callback) => createEventListener(IPC_CHANNELS.USAGE_UPDATED, callback),
     onError: (callback) => createEventListener(IPC_CHANNELS.USAGE_ERROR, callback),
+    onPreloaded: (callback) => createEventListener('usage:preloaded', callback),
   },
 
   // Settings API
