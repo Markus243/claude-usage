@@ -6,6 +6,7 @@ import { UsageData } from '../ipc/types';
 
 // Claude.ai API endpoints (unofficial - may change)
 const BOOTSTRAP_API_URL = 'https://claude.ai/api/bootstrap';
+const ORGANIZATIONS_API_URL = 'https://claude.ai/api/organizations';
 
 export class UsageService extends EventEmitter {
   private pollInterval: NodeJS.Timeout | null = null;
@@ -116,17 +117,61 @@ export class UsageService extends EventEmitter {
    * Make the actual API request to fetch usage
    */
   private async fetchUsageFromAPI(sessionKey: string): Promise<UsageData> {
-    // First, try to get bootstrap data which contains usage info
-    const response = await this.makeRequest(BOOTSTRAP_API_URL, sessionKey);
+    // Try bootstrap first to get account info and organization ID
+    const bootstrapResponse = await this.makeRequest(BOOTSTRAP_API_URL, sessionKey);
 
-    if (!response.ok) {
-      const error = new Error(`API request failed: ${response.status}`);
-      (error as any).status = response.status;
+    if (!bootstrapResponse.ok) {
+      const error = new Error(`API request failed: ${bootstrapResponse.status}`);
+      (error as any).status = bootstrapResponse.status;
       throw error;
     }
 
-    const data = await response.json();
-    return this.parseUsageResponse(data);
+    const bootstrapData = await bootstrapResponse.json();
+
+    // Try to get organization ID from bootstrap data
+    let orgId: string | null = null;
+    if (bootstrapData.account?.memberships?.[0]?.organization?.uuid) {
+      orgId = bootstrapData.account.memberships[0].organization.uuid;
+      console.log('Found org ID:', orgId);
+    }
+
+    // Try multiple endpoints to find rate limit data
+    let rateLimitData: any = null;
+
+    if (orgId) {
+      // Try rate_limit endpoint - the usage page is at /settings/usage
+      // so the API is likely at /api/organizations/{org_id}/...
+      const rateLimitEndpoints = [
+        `${ORGANIZATIONS_API_URL}/${orgId}/settings/usage`,
+        `${ORGANIZATIONS_API_URL}/${orgId}/rate_limit`,
+        `${ORGANIZATIONS_API_URL}/${orgId}/usage`,
+        `https://claude.ai/api/settings/usage`,
+        `https://claude.ai/api/account/usage`,
+        `https://claude.ai/api/account/rate_limit`,
+        `https://claude.ai/api/usage`,
+      ];
+
+      for (const url of rateLimitEndpoints) {
+        try {
+          console.log('Trying endpoint:', url);
+          const response = await this.makeRequest(url, sessionKey);
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`Response from ${url}:`, JSON.stringify(data, null, 2));
+            if (data && Object.keys(data).length > 0) {
+              rateLimitData = data;
+              break;
+            }
+          } else {
+            console.log(`Endpoint ${url} returned status:`, response.status);
+          }
+        } catch (e) {
+          console.log(`Failed to fetch from ${url}:`, e);
+        }
+      }
+    }
+
+    return this.parseUsageResponse(bootstrapData, rateLimitData);
   }
 
   /**
@@ -175,9 +220,15 @@ export class UsageService extends EventEmitter {
   /**
    * Parse the API response into UsageData format
    */
-  private parseUsageResponse(data: any): UsageData {
-    // Log the full raw response for debugging
-    console.log('Claude API full response:', JSON.stringify(data, null, 2));
+  private parseUsageResponse(data: any, rateLimitData?: any): UsageData {
+    // Log the bootstrap response keys (not full response - too large)
+    console.log('Claude API bootstrap keys:', Object.keys(data));
+    if (data.account) {
+      console.log('Account keys:', Object.keys(data.account));
+      if (data.account.memberships?.[0]) {
+        console.log('First membership:', JSON.stringify(data.account.memberships[0], null, 2));
+      }
+    }
 
     const now = new Date().toISOString();
 
@@ -186,11 +237,36 @@ export class UsageService extends EventEmitter {
     let sessionResetAt: string | null = null;
     let tier: UsageData['subscriptionTier'] = 'unknown';
 
+    // First priority: Use rate limit data from dedicated /usage endpoint
+    // Structure: { five_hour: { utilization: 15, resets_at: "..." }, seven_day: { utilization: 3, resets_at: "..." } }
+    let fiveHourUtilization: number | null = null;
+    let fiveHourResetAt: string | null = null;
+    let sevenDayUtilization: number | null = null;
+    let sevenDayResetAt: string | null = null;
+
+    if (rateLimitData) {
+      console.log('Using rate limit data from API');
+
+      // Parse five_hour (session) usage
+      if (rateLimitData.five_hour) {
+        fiveHourUtilization = rateLimitData.five_hour.utilization ?? null;
+        fiveHourResetAt = rateLimitData.five_hour.resets_at || null;
+        console.log('Five hour utilization:', fiveHourUtilization, '% resets at:', fiveHourResetAt);
+      }
+
+      // Parse seven_day (weekly) usage
+      if (rateLimitData.seven_day) {
+        sevenDayUtilization = rateLimitData.seven_day.utilization ?? null;
+        sevenDayResetAt = rateLimitData.seven_day.resets_at || null;
+        console.log('Seven day utilization:', sevenDayUtilization, '% resets at:', sevenDayResetAt);
+      }
+    }
+
     // Claude's bootstrap API structure - check all known paths
     // The API may return data at different levels depending on the endpoint version
 
     // Check for messageLimit at root level (common structure)
-    if (data.messageLimit) {
+    if (sessionRemaining === null && data.messageLimit) {
       console.log('Found messageLimit:', data.messageLimit);
       sessionRemaining = data.messageLimit.remaining ?? null;
       sessionResetAt = data.messageLimit.resetsAt || data.messageLimit.reset_at || null;
@@ -228,51 +304,78 @@ export class UsageService extends EventEmitter {
       sessionResetAt = sessionResetAt || usage.reset_at || usage.resets_at || null;
     }
 
-    // Detect subscription tier from various paths
+    // Detect subscription tier from organization.rate_limit_tier
     const account = data.account || {};
 
-    // Check memberships array (Claude often uses this structure)
+    // Check memberships array for rate_limit_tier
     if (data.account?.memberships && Array.isArray(data.account.memberships)) {
-      const activeMembership = data.account.memberships.find((m: any) => m.status === 'active')
-                              || data.account.memberships[0];
-      if (activeMembership) {
-        console.log('Found membership:', activeMembership);
-        const offerType = activeMembership.offer_type || activeMembership.offerType || '';
-        if (offerType.includes('max_20') || offerType.includes('max20')) tier = 'max20';
-        else if (offerType.includes('max') || offerType.includes('team')) tier = 'max5';
-        else if (offerType.includes('pro') || offerType.includes('plus') || offerType.includes('claude_pro')) tier = 'pro';
-        else if (offerType.includes('free')) tier = 'free';
-        else if (activeMembership.status === 'active') tier = 'pro';
+      const membership = data.account.memberships[0];
+      if (membership?.organization?.rate_limit_tier) {
+        const rateLimitTier = membership.organization.rate_limit_tier.toLowerCase();
+        console.log('Found rate_limit_tier:', rateLimitTier);
+
+        if (rateLimitTier.includes('max_20') || rateLimitTier.includes('20x')) {
+          tier = 'max20';
+        } else if (rateLimitTier.includes('max_5') || rateLimitTier.includes('5x') || rateLimitTier.includes('claude_max')) {
+          tier = 'max5';
+        } else if (rateLimitTier.includes('pro') || rateLimitTier.includes('plus')) {
+          tier = 'pro';
+        } else if (rateLimitTier.includes('free') || rateLimitTier.includes('basic')) {
+          tier = 'free';
+        }
+      }
+
+      // Also check capabilities array
+      if (tier === 'unknown' && membership?.organization?.capabilities) {
+        const capabilities = membership.organization.capabilities;
+        if (capabilities.includes('claude_max')) {
+          tier = 'max5'; // Default to max5 if we see claude_max capability
+        }
       }
     }
 
-    // Fallback tier detection
+    // Fallback tier detection from other fields
     if (tier === 'unknown') {
-      const subscriptionInfo = account.subscription || data.subscription || {};
-      const membershipInfo = account.membership || data.membership || {};
-      const planType = subscriptionInfo.plan_type || subscriptionInfo.type || subscriptionInfo.offer_type ||
-                       membershipInfo.plan_type || membershipInfo.type || membershipInfo.offer_type ||
-                       account.plan_type || account.subscription_type || account.offer_type ||
-                       data.plan_type || data.subscription_type || data.offer_type || '';
-
-      const hasPaidSub = account.has_active_paid_subscription ||
-                         data.has_active_paid_subscription ||
-                         subscriptionInfo.active ||
-                         (account.memberships && account.memberships.length > 0);
-
-      if (planType) {
-        const planLower = String(planType).toLowerCase();
-        if (planLower.includes('max_20') || planLower.includes('max20')) tier = 'max20';
-        else if (planLower.includes('max') || planLower.includes('team')) tier = 'max5';
-        else if (planLower.includes('pro') || planLower.includes('plus') || planLower.includes('claude_pro')) tier = 'pro';
-        else if (planLower.includes('free') || planLower === 'basic') tier = 'free';
-        else if (hasPaidSub) tier = 'pro';
-      } else if (hasPaidSub) {
-        tier = 'pro';
+      const hasPaidSub = (account.memberships && account.memberships.length > 0);
+      if (hasPaidSub) {
+        tier = 'pro'; // Default to pro if they have a membership
       }
     }
 
-    // Calculate limits based on tier
+    // The API returns utilization as a percentage directly!
+    // Use fiveHourUtilization and sevenDayUtilization if available
+
+    // Parse reset times
+    let finalSessionResetAt = this.calculateSessionReset();
+    if (fiveHourResetAt) {
+      try {
+        const resetDate = new Date(fiveHourResetAt);
+        if (!isNaN(resetDate.getTime())) {
+          finalSessionResetAt = resetDate.toISOString();
+        }
+      } catch (e) {
+        console.log('Failed to parse five_hour reset time:', fiveHourResetAt);
+      }
+    }
+
+    let finalWeeklyResetAt = this.calculateWeeklyReset();
+    if (sevenDayResetAt) {
+      try {
+        const resetDate = new Date(sevenDayResetAt);
+        if (!isNaN(resetDate.getTime())) {
+          finalWeeklyResetAt = resetDate.toISOString();
+        }
+      } catch (e) {
+        console.log('Failed to parse seven_day reset time:', sevenDayResetAt);
+      }
+    }
+
+    // Use utilization percentages directly from API
+    const sessionPercent = fiveHourUtilization !== null ? fiveHourUtilization : 0;
+    const weeklyPercent = sevenDayUtilization !== null ? sevenDayUtilization : 0;
+
+    // Calculate estimated used/limit values for display
+    // These are estimates since API only gives percentages
     const tierLimits: Record<string, { session: number; weekly: number }> = {
       free: { session: 10, weekly: 50 },
       pro: { session: 45, weekly: 500 },
@@ -282,52 +385,21 @@ export class UsageService extends EventEmitter {
     };
 
     const limits = tierLimits[tier] || tierLimits.unknown;
-    let sessionLimit = limits.session;
-    let sessionUsed = 0;
-
-    // If we have remaining count, calculate used
-    if (sessionRemaining !== null && sessionRemaining !== undefined) {
-      // Handle case where remaining might be larger than our assumed limit
-      if (sessionRemaining > sessionLimit) {
-        sessionLimit = sessionRemaining; // Adjust limit to match
-      }
-      sessionUsed = Math.max(0, sessionLimit - sessionRemaining);
-    }
-
-    // Parse reset time
-    let finalSessionResetAt = this.calculateSessionReset();
-    if (sessionResetAt) {
-      try {
-        const resetDate = new Date(sessionResetAt);
-        if (!isNaN(resetDate.getTime())) {
-          finalSessionResetAt = resetDate.toISOString();
-        }
-      } catch (e) {
-        console.log('Failed to parse reset time:', sessionResetAt);
-      }
-    }
-
-    // Calculate percentages
-    const sessionPercent = sessionLimit > 0
-      ? Math.min(100, Math.round((sessionUsed / sessionLimit) * 100))
-      : 0;
-
-    // Weekly usage (estimate if not available)
-    const usageBreakdown = data.usage || account.usage || {};
-    const weeklyUsed = usageBreakdown.weekly_used ?? usageBreakdown.weeklyUsed ?? Math.round(sessionUsed * 2);
+    const sessionLimit = limits.session;
     const weeklyLimit = limits.weekly;
-    const weeklyPercent = weeklyLimit > 0
-      ? Math.min(100, Math.round((weeklyUsed / weeklyLimit) * 100))
-      : 0;
-    const weeklyResetAt = this.calculateWeeklyReset();
+
+    // Estimate used based on percentage
+    const sessionUsed = Math.round((sessionPercent / 100) * sessionLimit);
+    const weeklyUsed = Math.round((weeklyPercent / 100) * weeklyLimit);
 
     console.log('Parsed usage:', {
       tier,
-      sessionRemaining,
-      sessionUsed,
-      sessionLimit,
+      fiveHourUtilization,
+      sevenDayUtilization,
       sessionPercent,
+      weeklyPercent,
       sessionResetAt: finalSessionResetAt,
+      weeklyResetAt: finalWeeklyResetAt,
     });
 
     return {
@@ -341,7 +413,7 @@ export class UsageService extends EventEmitter {
         used: weeklyUsed,
         limit: weeklyLimit,
         percentUsed: weeklyPercent,
-        resetAt: weeklyResetAt,
+        resetAt: finalWeeklyResetAt,
       },
       subscriptionTier: tier,
       lastUpdated: now,
