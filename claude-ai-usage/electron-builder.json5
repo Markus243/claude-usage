@@ -9,13 +9,21 @@
   },
   "files": [
     "dist",
-    "dist-electron"
+    "dist-electron",
+    "public/icon.svg"
+  ],
+  "extraResources": [
+    {
+      "from": "public/icon.svg",
+      "to": "icon.svg"
+    }
   ],
   "mac": {
     "target": [
       "dmg"
     ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+    "artifactName": "${productName}-Mac-${version}-Installer.${ext}",
+    "category": "public.app-category.productivity"
   },
   "win": {
     "target": [
@@ -41,6 +49,7 @@
     "target": [
       "AppImage"
     ],
-    "artifactName": "${productName}-Linux-${version}.${ext}"
+    "artifactName": "${productName}-Linux-${version}.${ext}",
+    "category": "Utility"
   }
 }

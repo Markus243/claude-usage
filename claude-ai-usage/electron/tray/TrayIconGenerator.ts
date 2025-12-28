@@ -5,41 +5,47 @@ export type TrayStatus = 'good' | 'warning' | 'critical' | 'unknown' | 'offline'
 
 interface IconColors {
   background: string;
-  foreground: string;
-  badge: string;
-  badgeText: string;
+  ring: string;
+  fill: string;
+  text: string;
+  accent: string;
 }
 
 const STATUS_COLORS: Record<TrayStatus, IconColors> = {
   good: {
     background: '#1a1a2e',
-    foreground: '#D97706', // Claude orange
-    badge: '#22C55E', // Green
-    badgeText: '#FFFFFF',
+    ring: '#2d3748',
+    fill: '#22C55E',
+    text: '#FFFFFF',
+    accent: '#D97706',
   },
   warning: {
     background: '#1a1a2e',
-    foreground: '#D97706',
-    badge: '#EAB308', // Yellow
-    badgeText: '#000000',
+    ring: '#2d3748',
+    fill: '#EAB308',
+    text: '#000000',
+    accent: '#D97706',
   },
   critical: {
     background: '#1a1a2e',
-    foreground: '#D97706',
-    badge: '#EF4444', // Red
-    badgeText: '#FFFFFF',
+    ring: '#2d3748',
+    fill: '#EF4444',
+    text: '#FFFFFF',
+    accent: '#EF4444',
   },
   unknown: {
     background: '#1a1a2e',
-    foreground: '#6B7280', // Gray
-    badge: '#6B7280',
-    badgeText: '#FFFFFF',
+    ring: '#2d3748',
+    fill: '#6B7280',
+    text: '#FFFFFF',
+    accent: '#6B7280',
   },
   offline: {
     background: '#1a1a2e',
-    foreground: '#6B7280',
-    badge: '#374151',
-    badgeText: '#9CA3AF',
+    ring: '#2d3748',
+    fill: '#374151',
+    text: '#9CA3AF',
+    accent: '#374151',
   },
 };
 
@@ -47,7 +53,7 @@ export class TrayIconGenerator {
   private iconCache: Map<string, NativeImage> = new Map();
 
   /**
-   * Generate a tray icon with status badge
+   * Generate a tray icon with usage percentage
    */
   generate(percent: number, status: TrayStatus): NativeImage {
     const cacheKey = `${percent}-${status}`;
@@ -56,7 +62,7 @@ export class TrayIconGenerator {
     const cached = this.iconCache.get(cacheKey);
     if (cached) return cached;
 
-    // Generate SVG-based icon
+    // Generate SVG-based icon (16x16 is standard for system tray)
     const svg = this.generateSVG(percent, status);
     const icon = nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`);
 
@@ -67,52 +73,57 @@ export class TrayIconGenerator {
   }
 
   /**
-   * Generate SVG string for the icon
+   * Generate SVG string for the icon - circular progress with percentage
    */
   private generateSVG(percent: number, status: TrayStatus): string {
     const colors = STATUS_COLORS[status];
-    const displayPercent = Math.min(Math.max(0, percent), 100);
+    const displayPercent = Math.min(Math.max(0, Math.round(percent)), 100);
 
-    // Create a simple icon with a "C" for Claude and a colored badge
+    // Calculate progress arc
+    const radius = 6;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDasharray = (displayPercent / 100) * circumference;
+
+    // For Windows system tray, we need a clear, bold icon
     return `
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
         <!-- Background circle -->
-        <circle cx="7" cy="8" r="6" fill="${colors.background}"/>
+        <circle cx="8" cy="8" r="7" fill="${colors.background}" stroke="${colors.ring}" stroke-width="0.5"/>
 
-        <!-- Claude "C" shape -->
-        <path d="M 9.5 5
-                 C 8.5 4 6 4 5 5.5
-                 C 4 7 4 9 5 10.5
-                 C 6 12 8.5 12 9.5 11"
-              stroke="${colors.foreground}"
-              stroke-width="2"
-              fill="none"
-              stroke-linecap="round"/>
+        <!-- Progress ring background -->
+        <circle cx="8" cy="8" r="${radius}" fill="none" stroke="${colors.ring}" stroke-width="2"/>
 
-        <!-- Status badge circle -->
-        <circle cx="12" cy="12" r="4" fill="${colors.badge}"/>
+        <!-- Progress ring fill -->
+        <circle cx="8" cy="8" r="${radius}"
+                fill="none"
+                stroke="${colors.fill}"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-dasharray="${strokeDasharray} ${circumference}"
+                transform="rotate(-90 8 8)"/>
 
-        <!-- Badge text (percentage indicator) -->
-        ${this.getBadgeContent(displayPercent, colors)}
+        <!-- Center text - show percentage number -->
+        ${this.getCenterContent(displayPercent, colors)}
       </svg>
     `;
   }
 
   /**
-   * Get badge content based on percentage
+   * Get center content based on percentage
    */
-  private getBadgeContent(percent: number, colors: IconColors): string {
+  private getCenterContent(percent: number, colors: IconColors): string {
     if (percent >= 100) {
       // Show "!" for at limit
-      return `<text x="12" y="14" text-anchor="middle" font-size="6" font-weight="bold" fill="${colors.badgeText}">!</text>`;
-    } else if (percent >= 90) {
-      // Show "!" for critical
-      return `<text x="12" y="14" text-anchor="middle" font-size="6" font-weight="bold" fill="${colors.badgeText}">!</text>`;
-    } else {
-      // Show abbreviated percentage (e.g., 45 -> "4", 75 -> "7")
-      const abbreviated = Math.floor(percent / 10);
-      return `<text x="12" y="14" text-anchor="middle" font-size="5" font-weight="bold" fill="${colors.badgeText}">${abbreviated}</text>`;
+      return `<text x="8" y="11" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="bold" fill="${colors.fill}">!</text>`;
     }
+
+    // Show percentage number (just the tens digit for small icon)
+    if (percent < 10) {
+      return `<text x="8" y="11" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" font-weight="bold" fill="${colors.text}">${percent}</text>`;
+    }
+
+    // For 10-99%, show the number
+    return `<text x="8" y="10.5" text-anchor="middle" font-family="Arial, sans-serif" font-size="6" font-weight="bold" fill="${colors.text}">${percent}</text>`;
   }
 
   /**

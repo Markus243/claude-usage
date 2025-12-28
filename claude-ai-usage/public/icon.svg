@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#d97706"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGrad)"/>
+
+  <!-- Outer ring (usage indicator background) -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#2d3748" stroke-width="24"/>
+
+  <!-- Usage arc (decorative, showing ~65% usage) -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="url(#orangeGrad)" stroke-width="24"
+          stroke-linecap="round" stroke-dasharray="735 1131"
+          transform="rotate(-90 256 256)" filter="url(#glow)"/>
+
+  <!-- Inner circle -->
+  <circle cx="256" cy="256" r="140" fill="#0f1419"/>
+
+  <!-- Claude "C" letterform -->
+  <path d="M 310 180
+           C 280 150, 200 150, 170 200
+           C 140 250, 140 310, 170 360
+           C 200 410, 280 410, 310 380"
+        stroke="url(#orangeGrad)"
+        stroke-width="36"
+        fill="none"
+        stroke-linecap="round"
+        filter="url(#glow)"/>
+
+  <!-- Small percentage badge -->
+  <circle cx="400" cy="400" r="70" fill="#1a1a2e" stroke="#d97706" stroke-width="4"/>
+  <text x="400" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"
+        font-size="56" font-weight="bold" fill="#f59e0b">%</text>
+</svg>

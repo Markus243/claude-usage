@@ -35,7 +35,7 @@ function createWindow() {
     y: windowState.y,
     minWidth: 350,
     minHeight: 500,
-    icon: path.join(process.env.VITE_PUBLIC!, 'electron-vite.svg'),
+    icon: path.join(process.env.VITE_PUBLIC!, 'icon.svg'),
     title: 'Claude Usage Tracker',
     frame: true,
     autoHideMenuBar: true, // Hide menu bar but allow access with Alt

@@ -26,6 +26,13 @@ export function registerIPCHandlers(mainWindow: BrowserWindow): void {
     const result = await authService.login();
     if (result.success) {
       trayManager.setAuthState(true);
+      // Immediately fetch usage data and send to renderer
+      const usage = await usageService.fetchUsage();
+      if (usage) {
+        mainWindow.webContents.send('usage:preloaded', usage);
+        trayManager.updateUsage(usage);
+      }
+      // Start polling for subsequent updates
       usageService.startPolling();
     }
     return result;
@@ -150,13 +157,18 @@ export function registerIPCHandlers(mainWindow: BrowserWindow): void {
     usageService.refresh();
   });
 
-  trayManager.on('login', () => {
-    authService.login().then((result) => {
-      if (result.success) {
-        trayManager.setAuthState(true);
-        usageService.startPolling();
+  trayManager.on('login', async () => {
+    const result = await authService.login();
+    if (result.success) {
+      trayManager.setAuthState(true);
+      // Immediately fetch usage data
+      const usage = await usageService.fetchUsage();
+      if (usage) {
+        mainWindow.webContents.send('usage:preloaded', usage);
+        trayManager.updateUsage(usage);
       }
-    });
+      usageService.startPolling();
+    }
   });
 
   trayManager.on('logout', async () => {
