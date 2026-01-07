@@ -17,15 +17,11 @@ export function Login() {
       <div className="login-container">
         <div className="login-header">
           <div className="login-logo">
-            <svg viewBox="0 0 24 24" className="claude-icon">
-              <circle cx="12" cy="12" r="11" />
-              <path
-                d="M 15.5 7.5 C 13.5 5.5 8.5 5.5 6.5 9 C 4.5 12.5 4.5 15.5 6.5 18 C 8.5 20.5 13.5 20.5 15.5 18.5"
-                strokeWidth="2"
-                fill="none"
-                strokeLinecap="round"
-              />
-            </svg>
+           <img
+              src="LOGO.png"
+              alt="Claude Usage Tracker Logo"
+              className="logo-image"
+            />
           </div>
           <h1>Claude Usage Tracker</h1>
           <p className="login-subtitle">

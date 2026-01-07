@@ -14,7 +14,7 @@
 
 /* Ambient background effect */
 .login-page::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -50%;
   left: -50%;
@@ -30,7 +30,8 @@
 }
 
 @keyframes ambientPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.6;
     transform: scale(1);
   }
@@ -42,7 +43,7 @@
 
 /* Secondary glow */
 .login-page::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -30%;
   right: -20%;
@@ -69,6 +70,12 @@
    HEADER & LOGO
    ============================================= */
 
+.logo-image {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 1rem;
+}
+
 .login-header {
   margin-bottom: 2rem;
 }
@@ -81,7 +88,7 @@
 
 /* Outer glow ring */
 .login-logo::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
@@ -98,7 +105,8 @@
 }
 
 @keyframes logoGlow {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 0.6;
   }
@@ -171,7 +179,7 @@
 }
 
 .feature::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -204,10 +212,18 @@
 }
 
 /* Staggered animation for features */
-.feature:nth-child(1) { animation: slideUp 0.5s ease-out 0.1s backwards; }
-.feature:nth-child(2) { animation: slideUp 0.5s ease-out 0.15s backwards; }
-.feature:nth-child(3) { animation: slideUp 0.5s ease-out 0.2s backwards; }
-.feature:nth-child(4) { animation: slideUp 0.5s ease-out 0.25s backwards; }
+.feature:nth-child(1) {
+  animation: slideUp 0.5s ease-out 0.1s backwards;
+}
+.feature:nth-child(2) {
+  animation: slideUp 0.5s ease-out 0.15s backwards;
+}
+.feature:nth-child(3) {
+  animation: slideUp 0.5s ease-out 0.2s backwards;
+}
+.feature:nth-child(4) {
+  animation: slideUp 0.5s ease-out 0.25s backwards;
+}
 
 /* =============================================
    LOGIN ACTION
@@ -241,8 +257,7 @@
   justify-content: center;
   gap: 0.625rem;
   transition: all 0.3s ease;
-  box-shadow:
-    0 4px 20px var(--accent-glow),
+  box-shadow: 0 4px 20px var(--accent-glow),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   position: relative;
   overflow: hidden;
@@ -250,7 +265,7 @@
 
 /* Button shine effect */
 .login-button::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -100%;
@@ -271,15 +286,13 @@
 
 .login-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow:
-    0 8px 30px var(--accent-glow),
+  box-shadow: 0 8px 30px var(--accent-glow),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .login-button:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow:
-    0 2px 10px var(--accent-glow),
+  box-shadow: 0 2px 10px var(--accent-glow),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -321,9 +334,16 @@
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
 }
 
 .login-hint {
@@ -338,7 +358,7 @@
    LIGHT THEME ADJUSTMENTS
    ============================================= */
 
-[data-theme='light'] .login-page::before {
+[data-theme="light"] .login-page::before {
   background: radial-gradient(
     ellipse at 50% 30%,
     rgba(217, 119, 6, 0.08) 0%,
@@ -346,7 +366,7 @@
   );
 }
 
-[data-theme='light'] .login-page::after {
+[data-theme="light"] .login-page::after {
   background: radial-gradient(
     ellipse at center,
     rgba(139, 92, 246, 0.05) 0%,
@@ -354,7 +374,7 @@
   );
 }
 
-[data-theme='light'] .login-logo::before {
+[data-theme="light"] .login-logo::before {
   background: radial-gradient(
     circle,
     rgba(217, 119, 6, 0.1) 0%,
@@ -362,22 +382,20 @@
   );
 }
 
-[data-theme='light'] .claude-icon {
+[data-theme="light"] .claude-icon {
   filter: drop-shadow(0 0 15px rgba(180, 83, 9, 0.3));
 }
 
-[data-theme='light'] .feature {
+[data-theme="light"] .feature {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-[data-theme='light'] .login-button {
-  box-shadow:
-    0 4px 15px rgba(180, 83, 9, 0.3),
+[data-theme="light"] .login-button {
+  box-shadow: 0 4px 15px rgba(180, 83, 9, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-[data-theme='light'] .login-button:hover:not(:disabled) {
-  box-shadow:
-    0 8px 25px rgba(180, 83, 9, 0.35),
+[data-theme="light"] .login-button:hover:not(:disabled) {
+  box-shadow: 0 8px 25px rgba(180, 83, 9, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
