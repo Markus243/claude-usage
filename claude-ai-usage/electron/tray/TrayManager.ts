@@ -19,6 +19,22 @@ export class TrayManager extends EventEmitter {
     this.iconGenerator = getTrayIconGenerator();
   }
 
+  private getIconPath(): string {
+    // In production, prefer the unpacked resource which is more reliable for Tray
+    if (app.isPackaged) {
+      const unpackedPath = path.join(process.resourcesPath, 'LOGO.png');
+      console.log('Checking unpacked icon path:', unpackedPath);
+      if (fs.existsSync(unpackedPath)) {
+        return unpackedPath;
+      }
+    }
+    
+    // Fallback to standard path (dev: public/, prod: dist/ inside asar)
+    const standardPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
+    console.log('Checking standard icon path:', standardPath);
+    return standardPath;
+  }
+
   /**
    * Initialize the system tray
    */
@@ -33,7 +49,7 @@ export class TrayManager extends EventEmitter {
 
     // Create tray with initial icon
     // Use LOGO.png as base icon to ensure visibility
-    const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
+    const iconPath = this.getIconPath();
     
     console.log('Initializing Tray with icon path:', iconPath);
     if (!fs.existsSync(iconPath)) {
@@ -91,7 +107,7 @@ export class TrayManager extends EventEmitter {
       this.currentUsage = null;
       if (this.tray) {
         // Use LOGO.png when not logged in
-        const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
+        const iconPath = this.getIconPath();
         try {
            const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
            this.tray.setImage(icon);
@@ -111,7 +127,7 @@ export class TrayManager extends EventEmitter {
     if (!this.tray) return;
 
     // Use LOGO.png when offline
-    const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
+    const iconPath = this.getIconPath();
     try {
         const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
         this.tray.setImage(icon);
