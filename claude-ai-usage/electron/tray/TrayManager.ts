@@ -3,20 +3,17 @@ const path = require('node:path');
 const fs = require('fs');
 import type { BrowserWindow as BrowserWindowType, MenuItemConstructorOptions } from 'electron';
 import { EventEmitter } from 'events';
-import { getTrayIconGenerator, TrayIconGenerator } from './TrayIconGenerator';
 import { UsageData } from '../ipc/types';
 import { formatDistanceToNow } from 'date-fns';
 
 export class TrayManager extends EventEmitter {
   private tray: typeof Tray | null = null;
-  private iconGenerator: TrayIconGenerator;
   private mainWindow: BrowserWindowType | null = null;
   private currentUsage: UsageData | null = null;
   private isAuthenticated = false;
 
   constructor() {
     super();
-    this.iconGenerator = getTrayIconGenerator();
   }
 
   private getIconPath(): string {
@@ -183,16 +180,15 @@ export class TrayManager extends EventEmitter {
     const tierLabel = this.getTierLabel(usage.subscriptionTier);
 
     return [
-      'Claude Usage Tracker',
-      '─'.repeat(20),
-      `Session (5hr): ${sessionPercent}%`,
+      `Claude Usage Tracker ${tierLabel ? `(${tierLabel})` : ''}`,
+      '',
+      `Session: ${sessionPercent}%`,
       `${this.createProgressBar(sessionPercent)}`,
+      `Resets in ${sessionReset}`,
       '',
       `Weekly: ${weeklyPercent}%`,
       `${this.createProgressBar(weeklyPercent)}`,
-      '',
-      `Resets: ${sessionReset} | ${weeklyReset}`,
-      tierLabel ? `Plan: ${tierLabel}` : '',
+      `Resets in ${weeklyReset}`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -202,10 +198,11 @@ export class TrayManager extends EventEmitter {
    * Create ASCII progress bar
    */
   private createProgressBar(percent: number): string {
-    const width = 18;
+    const width = 15;
     const filled = Math.round((percent / 100) * width);
     const empty = width - filled;
-    return `[${'█'.repeat(filled)}${'░'.repeat(empty)}]`;
+    // Use block characters for cleaner look
+    return `${'█'.repeat(filled)}${'░'.repeat(empty)}`;
   }
 
   /**
@@ -214,7 +211,8 @@ export class TrayManager extends EventEmitter {
   private formatResetTime(isoString: string): string {
     try {
       const date = new Date(isoString);
-      return formatDistanceToNow(date, { addSuffix: false });
+      // Remove 'about ' prefix for cleaner display
+      return formatDistanceToNow(date, { addSuffix: false }).replace(/^about /, '');
     } catch {
       return 'Unknown';
     }
