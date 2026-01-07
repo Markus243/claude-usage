@@ -4,7 +4,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Desktop app for tracking Claude AI subscription usage limits",
-  "author": "Your Name",
+  "author": "Markus Mulder",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",

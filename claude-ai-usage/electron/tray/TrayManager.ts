@@ -20,19 +20,43 @@ export class TrayManager extends EventEmitter {
   }
 
   private getIconPath(): string {
-    // In production, prefer the unpacked resource which is more reliable for Tray
+    const possiblePaths: string[] = [];
+
+    // 1. Check unpacked resources (production best practice)
+    // This looks for resources/LOGO.png which is set in electron-builder extraResources
     if (app.isPackaged) {
-      const unpackedPath = path.join(process.resourcesPath, 'LOGO.png');
-      console.log('Checking unpacked icon path:', unpackedPath);
-      if (fs.existsSync(unpackedPath)) {
-        return unpackedPath;
+      possiblePaths.push(path.join(process.resourcesPath, 'LOGO.png'));
+    }
+
+    // 2. Check VITE_PUBLIC env var (standard dev/prod location)
+    if (process.env.VITE_PUBLIC) {
+      possiblePaths.push(path.join(process.env.VITE_PUBLIC, 'LOGO.png'));
+    }
+
+    // 3. Check inside app bundle (fallback for production)
+    // Using simple path resolution relative to app root
+    const appPath = app.getAppPath(); // Usually ends in resources/app.asar
+    possiblePaths.push(path.join(appPath, 'dist', 'LOGO.png'));
+    possiblePaths.push(path.join(appPath, 'public', 'LOGO.png'));
+
+    // 4. Dev fallback
+    possiblePaths.push(path.join(process.cwd(), 'public', 'LOGO.png'));
+
+    console.log('Searching for tray icon in:', possiblePaths);
+
+    for (const p of possiblePaths) {
+      try {
+        if (fs.existsSync(p)) {
+          console.log('Found tray icon at:', p);
+          return p;
+        }
+      } catch (e) {
+        console.error('Error checking path:', p, e);
       }
     }
-    
-    // Fallback to standard path (dev: public/, prod: dist/ inside asar)
-    const standardPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
-    console.log('Checking standard icon path:', standardPath);
-    return standardPath;
+
+    // Final fallback to prevent crash, even if file might not exist
+    return path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
   }
 
   /**
