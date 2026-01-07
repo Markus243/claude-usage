@@ -1,4 +1,5 @@
 const { Tray, Menu, app, shell } = require('electron');
+const path = require('node:path');
 import type { BrowserWindow as BrowserWindowType, MenuItemConstructorOptions } from 'electron';
 import { EventEmitter } from 'events';
 import { getTrayIconGenerator, TrayIconGenerator } from './TrayIconGenerator';
@@ -24,8 +25,9 @@ export class TrayManager extends EventEmitter {
     this.mainWindow = mainWindow;
 
     // Create tray with initial icon
-    const icon = this.iconGenerator.generateBaseIcon();
-    this.tray = new Tray(icon);
+    // Use LOGO.png as base icon to ensure visibility
+    const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
+    this.tray = new Tray(iconPath);
 
     this.tray.setToolTip('Claude Usage Tracker - Loading...');
     this.tray.setContextMenu(this.buildContextMenu());

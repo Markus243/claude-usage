@@ -35,7 +35,7 @@ function createWindow() {
     y: windowState.y,
     minWidth: 350,
     minHeight: 500,
-    icon: path.join(process.env.VITE_PUBLIC!, 'icon.svg'),
+    icon: path.join(process.env.VITE_PUBLIC!, 'LOGO.png'),
     title: 'Claude Usage Tracker',
     frame: true,
     autoHideMenuBar: true, // Hide menu bar but allow access with Alt
@@ -111,6 +111,13 @@ async function initializeServices(window: typeof BrowserWindow) {
   const authService = getAuthService();
   const usageService = getUsageService();
   const trayManager = getTrayManager();
+
+  // Initialize tray
+  try {
+    trayManager.initialize(window);
+  } catch (err) {
+    console.error('Failed to initialize tray:', err);
+  }
 
   // Check if user has valid session
   const isAuthenticated = await authService.checkSession();
