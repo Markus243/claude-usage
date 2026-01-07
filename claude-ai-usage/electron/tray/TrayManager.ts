@@ -108,11 +108,15 @@ export class TrayManager extends EventEmitter {
     this.currentUsage = usage;
     this.isAuthenticated = true;
 
-    // Update icon based on session usage (primary indicator)
-    const percent = usage.sessionUsage.percentUsed;
-    const status = TrayIconGenerator.getStatus(percent);
-    const icon = this.iconGenerator.generate(percent, status);
-    this.tray.setImage(icon);
+    // Use standard LOGO.png for stability on Windows
+    // Dynamic SVG generation is unreliable in production builds
+    const iconPath = this.getIconPath();
+    try {
+      const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+      this.tray.setImage(icon);
+    } catch (e) {
+      console.error('Failed to set usage icon:', e);
+    }
 
     // Update tooltip
     this.tray.setToolTip(this.buildTooltip(usage));
