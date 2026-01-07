@@ -1,4 +1,4 @@
-const { ipcMain, shell } = require('electron');
+const { ipcMain, shell, app } = require('electron');
 import type { BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from './channels';
 import { getAuthService } from '../services/AuthService';
@@ -79,6 +79,39 @@ export function registerIPCHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SET, async (_event: Electron.IpcMainInvokeEvent, key: keyof AppSettings, value: any) => {
     store.updateSetting(key, value);
+
+    // Handle side effects
+    if (key === 'startWithWindows') {
+      app.setLoginItemSettings({
+        openAtLogin: value,
+        openAsHidden: store.getSettings().startMinimized
+      });
+    }
+
+    if (key === 'startMinimized') {
+      const settings = store.getSettings();
+      if (settings.startWithWindows) {
+        app.setLoginItemSettings({
+          openAtLogin: true,
+          openAsHidden: value
+        });
+      }
+    }
+
+    if (key === 'pollIntervalMs') {
+      // Restart polling to apply new interval
+      usageService.stopPolling();
+      usageService.startPolling();
+    }
+
+    if (key === 'thresholds') {
+      // Check thresholds against current usage immediately
+      const lastUsage = usageService.getLastUsage();
+      if (lastUsage) {
+        notificationService.checkThresholds(lastUsage);
+      }
+    }
+
     return { success: true };
   });
 

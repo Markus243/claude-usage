@@ -2,12 +2,23 @@
 
 Desktop app for tracking Claude AI subscription usage limits.
 
+<a href="https://buymeacoffee.com/markusjmul6" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
 ## Features
 
 - Real-time usage tracking
 - System tray integration with visual indicators
 - Secure authentication management
 - Usage notifications
+
+## Installation
+
+Download the latest installer from the releases page (or build it from source).
+
+1. Run the `Claude Usage Tracker-Windows-Setup.exe` installer.
+2. The application will launch automatically.
+3. Look for the Claude logo in your system tray (bottom right corner).
+4. Click the icon to open the dashboard and log in with your Claude.ai account.
 
 ## Development
 

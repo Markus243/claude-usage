@@ -3,20 +3,57 @@ const path = require('node:path');
 const fs = require('fs');
 import type { BrowserWindow as BrowserWindowType, MenuItemConstructorOptions } from 'electron';
 import { EventEmitter } from 'events';
-import { getTrayIconGenerator, TrayIconGenerator } from './TrayIconGenerator';
 import { UsageData } from '../ipc/types';
 import { formatDistanceToNow } from 'date-fns';
 
 export class TrayManager extends EventEmitter {
   private tray: typeof Tray | null = null;
-  private iconGenerator: TrayIconGenerator;
   private mainWindow: BrowserWindowType | null = null;
   private currentUsage: UsageData | null = null;
   private isAuthenticated = false;
 
   constructor() {
     super();
-    this.iconGenerator = getTrayIconGenerator();
+  }
+
+  private getIconPath(): string {
+    const possiblePaths: string[] = [];
+
+    // 1. Check unpacked resources (production best practice)
+    // This looks for resources/LOGO.png which is set in electron-builder extraResources
+    if (app.isPackaged) {
+      possiblePaths.push(path.join(process.resourcesPath, 'LOGO.png'));
+    }
+
+    // 2. Check VITE_PUBLIC env var (standard dev/prod location)
+    if (process.env.VITE_PUBLIC) {
+      possiblePaths.push(path.join(process.env.VITE_PUBLIC, 'LOGO.png'));
+    }
+
+    // 3. Check inside app bundle (fallback for production)
+    // Using simple path resolution relative to app root
+    const appPath = app.getAppPath(); // Usually ends in resources/app.asar
+    possiblePaths.push(path.join(appPath, 'dist', 'LOGO.png'));
+    possiblePaths.push(path.join(appPath, 'public', 'LOGO.png'));
+
+    // 4. Dev fallback
+    possiblePaths.push(path.join(process.cwd(), 'public', 'LOGO.png'));
+
+    console.log('Searching for tray icon in:', possiblePaths);
+
+    for (const p of possiblePaths) {
+      try {
+        if (fs.existsSync(p)) {
+          console.log('Found tray icon at:', p);
+          return p;
+        }
+      } catch (e) {
+        console.error('Error checking path:', p, e);
+      }
+    }
+
+    // Final fallback to prevent crash, even if file might not exist
+    return path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
   }
 
   /**
@@ -33,7 +70,7 @@ export class TrayManager extends EventEmitter {
 
     // Create tray with initial icon
     // Use LOGO.png as base icon to ensure visibility
-    const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
+    const iconPath = this.getIconPath();
     
     console.log('Initializing Tray with icon path:', iconPath);
     if (!fs.existsSync(iconPath)) {
@@ -68,11 +105,15 @@ export class TrayManager extends EventEmitter {
     this.currentUsage = usage;
     this.isAuthenticated = true;
 
-    // Update icon based on session usage (primary indicator)
-    const percent = usage.sessionUsage.percentUsed;
-    const status = TrayIconGenerator.getStatus(percent);
-    const icon = this.iconGenerator.generate(percent, status);
-    this.tray.setImage(icon);
+    // Use standard LOGO.png for stability on Windows
+    // Dynamic SVG generation is unreliable in production builds
+    const iconPath = this.getIconPath();
+    try {
+      const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+      this.tray.setImage(icon);
+    } catch (e) {
+      console.error('Failed to set usage icon:', e);
+    }
 
     // Update tooltip
     this.tray.setToolTip(this.buildTooltip(usage));
@@ -91,7 +132,7 @@ export class TrayManager extends EventEmitter {
       this.currentUsage = null;
       if (this.tray) {
         // Use LOGO.png when not logged in
-        const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
+        const iconPath = this.getIconPath();
         try {
            const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
            this.tray.setImage(icon);
@@ -111,7 +152,7 @@ export class TrayManager extends EventEmitter {
     if (!this.tray) return;
 
     // Use LOGO.png when offline
-    const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
+    const iconPath = this.getIconPath();
     try {
         const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
         this.tray.setImage(icon);
@@ -139,16 +180,15 @@ export class TrayManager extends EventEmitter {
     const tierLabel = this.getTierLabel(usage.subscriptionTier);
 
     return [
-      'Claude Usage Tracker',
-      '─'.repeat(20),
-      `Session (5hr): ${sessionPercent}%`,
+      `Claude Usage Tracker ${tierLabel ? `(${tierLabel})` : ''}`,
+      '',
+      `Session: ${sessionPercent}%`,
       `${this.createProgressBar(sessionPercent)}`,
+      `Resets in ${sessionReset}`,
       '',
       `Weekly: ${weeklyPercent}%`,
       `${this.createProgressBar(weeklyPercent)}`,
-      '',
-      `Resets: ${sessionReset} | ${weeklyReset}`,
-      tierLabel ? `Plan: ${tierLabel}` : '',
+      `Resets in ${weeklyReset}`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -158,10 +198,11 @@ export class TrayManager extends EventEmitter {
    * Create ASCII progress bar
    */
   private createProgressBar(percent: number): string {
-    const width = 18;
+    const width = 15;
     const filled = Math.round((percent / 100) * width);
     const empty = width - filled;
-    return `[${'█'.repeat(filled)}${'░'.repeat(empty)}]`;
+    // Use block characters for cleaner look
+    return `${'█'.repeat(filled)}${'░'.repeat(empty)}`;
   }
 
   /**
@@ -170,7 +211,8 @@ export class TrayManager extends EventEmitter {
   private formatResetTime(isoString: string): string {
     try {
       const date = new Date(isoString);
-      return formatDistanceToNow(date, { addSuffix: false });
+      // Remove 'about ' prefix for cleaner display
+      return formatDistanceToNow(date, { addSuffix: false }).replace(/^about /, '');
     } catch {
       return 'Unknown';
     }
