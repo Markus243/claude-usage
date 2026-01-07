@@ -112,13 +112,6 @@ async function initializeServices(window: typeof BrowserWindow) {
   const usageService = getUsageService();
   const trayManager = getTrayManager();
 
-  // Initialize tray
-  try {
-    trayManager.initialize(window);
-  } catch (err) {
-    console.error('Failed to initialize tray:', err);
-  }
-
   // Check if user has valid session
   const isAuthenticated = await authService.checkSession();
 

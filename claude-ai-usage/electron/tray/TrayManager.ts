@@ -22,6 +22,12 @@ export class TrayManager extends EventEmitter {
    * Initialize the system tray
    */
   initialize(mainWindow: BrowserWindowType): void {
+    // Clean up existing tray if any
+    if (this.tray) {
+      this.tray.destroy();
+      this.tray = null;
+    }
+
     this.mainWindow = mainWindow;
 
     // Create tray with initial icon
@@ -74,8 +80,9 @@ export class TrayManager extends EventEmitter {
     if (!authenticated) {
       this.currentUsage = null;
       if (this.tray) {
-        const icon = this.iconGenerator.generate(0, 'unknown');
-        this.tray.setImage(icon);
+        // Use LOGO.png when not logged in
+        const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
+        this.tray.setImage(iconPath);
         this.tray.setToolTip('Claude Usage Tracker - Not logged in');
         this.tray.setContextMenu(this.buildContextMenu());
       }
@@ -88,8 +95,9 @@ export class TrayManager extends EventEmitter {
   setOfflineState(): void {
     if (!this.tray) return;
 
-    const icon = this.iconGenerator.generate(0, 'offline');
-    this.tray.setImage(icon);
+    // Use LOGO.png when offline
+    const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
+    this.tray.setImage(iconPath);
 
     if (this.currentUsage) {
       this.tray.setToolTip(this.buildTooltip(this.currentUsage) + '\n\n[Offline - Data may be stale]');
