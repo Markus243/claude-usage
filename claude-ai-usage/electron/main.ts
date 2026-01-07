@@ -7,7 +7,9 @@ import { registerIPCHandlers, cleanupIPCHandlers } from './ipc/handlers';
 import { getTrayManager } from './tray/TrayManager';
 import { getAuthService } from './services/AuthService';
 import { getUsageService } from './services/UsageService';
+import { getNotificationService } from './services/NotificationService';
 import { getStore } from './storage/SecureStore';
+import { IPC_CHANNELS } from './ipc/channels';
 
 // The built directory structure
 const __dirname_resolved = __dirname;
@@ -110,10 +112,46 @@ function createWindow() {
 async function initializeServices(window: typeof BrowserWindow) {
   const authService = getAuthService();
   const usageService = getUsageService();
+  const notificationService = getNotificationService();
   const trayManager = getTrayManager();
 
   // Check if user has valid session
   const isAuthenticated = await authService.checkSession();
+
+  // Wire up UsageService events
+  usageService.on('usage:updated', (usage) => {
+    // Send to renderer
+    if (window.webContents && !window.webContents.isDestroyed()) {
+      window.webContents.send(IPC_CHANNELS.USAGE_UPDATED, usage);
+    }
+    
+    // Update tray
+    trayManager.updateUsage(usage);
+    
+    // Check notifications
+    notificationService.checkThresholds(usage);
+  });
+
+  usageService.on('usage:error', (error) => {
+    if (window.webContents && !window.webContents.isDestroyed()) {
+      window.webContents.send(IPC_CHANNELS.USAGE_ERROR, error);
+    }
+  });
+
+  usageService.on('auth:expired', () => {
+    authService.logout();
+    trayManager.setAuthState(false);
+    if (window.webContents && !window.webContents.isDestroyed()) {
+      window.webContents.send(IPC_CHANNELS.AUTH_STATUS_CHANGED, { isAuthenticated: false });
+    }
+  });
+
+  // Wire up NotificationService events
+  notificationService.on('threshold:triggered', (payload) => {
+    if (window.webContents && !window.webContents.isDestroyed()) {
+      window.webContents.send(IPC_CHANNELS.NOTIFICATION_THRESHOLD_TRIGGERED, payload);
+    }
+  });
 
   if (isAuthenticated) {
     trayManager.setAuthState(true);
