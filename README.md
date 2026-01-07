@@ -2,6 +2,11 @@
 
 Desktop app for tracking Claude AI subscription usage limits.
 
+<img width="599" height="647" alt="Screenshot 2026-01-07 132344" src="https://github.com/user-attachments/assets/69ebbd30-0c68-48e2-85d2-962163511927" />
+
+<img width="593" height="644" alt="Screenshot 2026-01-07 134536" src="https://github.com/user-attachments/assets/d80369f2-3d2a-4dba-8f85-a3fb5de01344" />
+
+---
 <a href="https://buymeacoffee.com/markusjmul6" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## Features
