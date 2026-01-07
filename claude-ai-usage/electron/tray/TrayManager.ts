@@ -1,5 +1,6 @@
-const { Tray, Menu, app, shell } = require('electron');
+const { Tray, Menu, app, shell, nativeImage } = require('electron');
 const path = require('node:path');
+const fs = require('fs');
 import type { BrowserWindow as BrowserWindowType, MenuItemConstructorOptions } from 'electron';
 import { EventEmitter } from 'events';
 import { getTrayIconGenerator, TrayIconGenerator } from './TrayIconGenerator';
@@ -33,7 +34,16 @@ export class TrayManager extends EventEmitter {
     // Create tray with initial icon
     // Use LOGO.png as base icon to ensure visibility
     const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
-    this.tray = new Tray(iconPath);
+    
+    console.log('Initializing Tray with icon path:', iconPath);
+    if (!fs.existsSync(iconPath)) {
+      console.error('Tray icon file not found at:', iconPath);
+    }
+
+    // Create native image and resize it to appropriate size for tray (16x16 for Windows)
+    const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+    
+    this.tray = new Tray(icon);
 
     this.tray.setToolTip('Claude Usage Tracker - Loading...');
     this.tray.setContextMenu(this.buildContextMenu());
@@ -82,7 +92,12 @@ export class TrayManager extends EventEmitter {
       if (this.tray) {
         // Use LOGO.png when not logged in
         const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
-        this.tray.setImage(iconPath);
+        try {
+           const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+           this.tray.setImage(icon);
+        } catch (e) {
+           console.error('Failed to set auth state icon:', e);
+        }
         this.tray.setToolTip('Claude Usage Tracker - Not logged in');
         this.tray.setContextMenu(this.buildContextMenu());
       }
@@ -97,7 +112,12 @@ export class TrayManager extends EventEmitter {
 
     // Use LOGO.png when offline
     const iconPath = path.join(process.env.VITE_PUBLIC || '', 'LOGO.png');
-    this.tray.setImage(iconPath);
+    try {
+        const icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+        this.tray.setImage(icon);
+    } catch (e) {
+        console.error('Failed to set offline state icon:', e);
+    }
 
     if (this.currentUsage) {
       this.tray.setToolTip(this.buildTooltip(this.currentUsage) + '\n\n[Offline - Data may be stale]');
