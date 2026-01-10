@@ -4,6 +4,7 @@ import {
   StoreSchema,
   DEFAULT_SETTINGS,
   DEFAULT_WINDOW_STATE,
+  DEFAULT_NOTIFICATIONS_STATE,
   AppSettings,
   UsageData,
 } from '../ipc/types';
@@ -38,6 +39,7 @@ class SecureStore {
           lastFetchTime: null,
         },
         windowState: DEFAULT_WINDOW_STATE,
+        notifications: DEFAULT_NOTIFICATIONS_STATE,
       },
     });
   }
@@ -167,6 +169,51 @@ class SecureStore {
   setWindowState(state: Partial<StoreSchema['windowState']>): void {
     const current = this.getWindowState();
     this.store.set('windowState', { ...current, ...state });
+  }
+
+  // ============================================
+  // Notifications State
+  // ============================================
+
+  getNotificationsState(): StoreSchema['notifications'] {
+    return this.store.get('notifications') || DEFAULT_NOTIFICATIONS_STATE;
+  }
+
+  setTriggeredAlerts(alerts: string[]): void {
+    this.store.set('notifications.triggeredAlerts', alerts);
+  }
+
+  getTriggeredAlerts(): string[] {
+    return this.store.get('notifications.triggeredAlerts') || [];
+  }
+
+  setLastNotificationTime(alertKey: string, time: string): void {
+    const times = this.store.get('notifications.lastNotificationTimes') || {};
+    times[alertKey] = time;
+    this.store.set('notifications.lastNotificationTimes', times);
+  }
+
+  getLastNotificationTime(alertKey: string): string | null {
+    const times = this.store.get('notifications.lastNotificationTimes') || {};
+    return times[alertKey] || null;
+  }
+
+  setLastResetTimestamps(sessionResetAt: string | null, weeklyResetAt: string | null): void {
+    this.store.set('notifications.lastSessionResetAt', sessionResetAt);
+    this.store.set('notifications.lastWeeklyResetAt', weeklyResetAt);
+  }
+
+  getLastResetTimestamps(): { sessionResetAt: string | null; weeklyResetAt: string | null } {
+    return {
+      sessionResetAt: this.store.get('notifications.lastSessionResetAt'),
+      weeklyResetAt: this.store.get('notifications.lastWeeklyResetAt'),
+    };
+  }
+
+  clearNotificationsForType(type: 'session' | 'weekly'): void {
+    const alerts = this.getTriggeredAlerts();
+    const filteredAlerts = alerts.filter(key => !key.startsWith(type));
+    this.setTriggeredAlerts(filteredAlerts);
   }
 
   // ============================================

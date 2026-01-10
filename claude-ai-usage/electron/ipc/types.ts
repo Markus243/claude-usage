@@ -100,6 +100,12 @@ export interface StoreSchema {
     y: number | undefined;
     isMaximized: boolean;
   };
+  notifications: {
+    triggeredAlerts: string[];
+    lastNotificationTimes: Record<string, string>;
+    lastSessionResetAt: string | null;
+    lastWeeklyResetAt: string | null;
+  };
 }
 
 // ============================================
@@ -129,4 +135,11 @@ export const DEFAULT_WINDOW_STATE = {
   x: undefined,
   y: undefined,
   isMaximized: false,
+};
+
+export const DEFAULT_NOTIFICATIONS_STATE = {
+  triggeredAlerts: [] as string[],
+  lastNotificationTimes: {} as Record<string, string>,
+  lastSessionResetAt: null as string | null,
+  lastWeeklyResetAt: null as string | null,
 };

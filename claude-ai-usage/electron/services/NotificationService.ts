@@ -3,14 +3,24 @@ import { EventEmitter } from 'events';
 import { getStore } from '../storage/SecureStore';
 import { AlertThreshold, UsageData } from '../ipc/types';
 
+// Cooldown period for notifications (4 hours in milliseconds)
+// This prevents the same notification from firing repeatedly even after app restarts
+const NOTIFICATION_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+
 export class NotificationService extends EventEmitter {
   private store = getStore();
-  private triggeredAlerts: Set<string> = new Set();
-  private lastSessionResetAt: string | null = null;
-  private lastWeeklyResetAt: string | null = null;
+  private triggeredAlerts: Set<string>;
+  private lastSessionResetAt: string | null;
+  private lastWeeklyResetAt: string | null;
 
   constructor() {
     super();
+    // Restore persisted state
+    const persistedAlerts = this.store.getTriggeredAlerts();
+    this.triggeredAlerts = new Set(persistedAlerts);
+    const resetTimestamps = this.store.getLastResetTimestamps();
+    this.lastSessionResetAt = resetTimestamps.sessionResetAt;
+    this.lastWeeklyResetAt = resetTimestamps.weeklyResetAt;
   }
 
   /**
@@ -33,35 +43,72 @@ export class NotificationService extends EventEmitter {
 
       const alertKey = `${threshold.type}-${threshold.percentage}`;
 
-      // Only trigger once per reset cycle
+      // Only trigger once per reset cycle AND respect cooldown
       if (currentPercent >= threshold.percentage && !this.triggeredAlerts.has(alertKey)) {
-        this.triggerNotification(threshold, currentPercent);
-        this.triggeredAlerts.add(alertKey);
+        // Check if we're within the cooldown period
+        if (!this.isWithinCooldown(alertKey)) {
+          this.triggerNotification(threshold, currentPercent);
+          this.triggeredAlerts.add(alertKey);
+          // Persist the triggered state and record notification time
+          this.persistTriggeredAlerts();
+          this.store.setLastNotificationTime(alertKey, new Date().toISOString());
+        }
       }
 
       // Reset alert when usage goes below threshold (after reset)
       if (currentPercent < threshold.percentage - 5) {
         // 5% hysteresis
-        this.triggeredAlerts.delete(alertKey);
+        if (this.triggeredAlerts.has(alertKey)) {
+          this.triggeredAlerts.delete(alertKey);
+          this.persistTriggeredAlerts();
+        }
       }
     }
+  }
+
+  /**
+   * Check if a notification is within the cooldown period
+   */
+  private isWithinCooldown(alertKey: string): boolean {
+    const lastTime = this.store.getLastNotificationTime(alertKey);
+    if (!lastTime) return false;
+
+    const lastTimestamp = new Date(lastTime).getTime();
+    const now = Date.now();
+    return (now - lastTimestamp) < NOTIFICATION_COOLDOWN_MS;
+  }
+
+  /**
+   * Persist the current triggered alerts to storage
+   */
+  private persistTriggeredAlerts(): void {
+    this.store.setTriggeredAlerts(Array.from(this.triggeredAlerts));
   }
 
   /**
    * Check if usage has reset and clear triggered alerts
    */
   private checkForUsageReset(usage: UsageData): void {
+    let changed = false;
+
     // Check session reset
     if (this.lastSessionResetAt && usage.sessionUsage.resetAt !== this.lastSessionResetAt) {
       this.resetAlerts('session');
+      changed = true;
     }
     this.lastSessionResetAt = usage.sessionUsage.resetAt;
 
     // Check weekly reset
     if (this.lastWeeklyResetAt && usage.weeklyUsage.resetAt !== this.lastWeeklyResetAt) {
       this.resetAlerts('weekly');
+      changed = true;
     }
     this.lastWeeklyResetAt = usage.weeklyUsage.resetAt;
+
+    // Persist the reset timestamps if changed
+    if (changed) {
+      this.store.setLastResetTimestamps(this.lastSessionResetAt, this.lastWeeklyResetAt);
+    }
   }
 
   /**
@@ -73,6 +120,9 @@ export class NotificationService extends EventEmitter {
         this.triggeredAlerts.delete(key);
       }
     }
+    // Persist changes and also clear in store
+    this.persistTriggeredAlerts();
+    this.store.clearNotificationsForType(type);
   }
 
   /**
@@ -160,6 +210,9 @@ export class NotificationService extends EventEmitter {
     this.triggeredAlerts.clear();
     this.lastSessionResetAt = null;
     this.lastWeeklyResetAt = null;
+    // Persist cleared state
+    this.persistTriggeredAlerts();
+    this.store.setLastResetTimestamps(null, null);
   }
 
   /**

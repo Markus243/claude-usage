@@ -22,6 +22,7 @@ export class AuthService extends EventEmitter {
 
   /**
    * Check if user has a valid session
+   * Only clears auth on explicit 401 (unauthorized), not on network errors
    */
   async checkSession(): Promise<boolean> {
     const sessionKey = this.store.getSessionKey();
@@ -29,25 +30,52 @@ export class AuthService extends EventEmitter {
       return false;
     }
 
-    // Validate session by making a test request
-    try {
-      const isValid = await this.validateSessionKey(sessionKey);
-      if (!isValid) {
-        this.store.clearAuth();
-        this.emit('auth:expired');
-        return false;
+    // Validate session by making a test request with retries
+    // Network might not be ready immediately after computer restart
+    const maxRetries = 3;
+    const retryDelayMs = 2000;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await this.validateSessionKey(sessionKey);
+
+        if (result.status === 401) {
+          // Explicit unauthorized - session is truly expired
+          console.log('[AuthService] Session expired (401), clearing auth');
+          this.store.clearAuth();
+          this.emit('auth:expired');
+          return false;
+        }
+
+        if (result.valid) {
+          return true;
+        }
+
+        // Non-401 error (network issue, server error, etc.)
+        // Don't clear auth, just return true and let usage fetch handle it
+        if (attempt < maxRetries) {
+          console.log(`[AuthService] Session validation failed (attempt ${attempt}/${maxRetries}), retrying...`);
+          await new Promise(r => setTimeout(r, retryDelayMs));
+        }
+      } catch (error) {
+        console.error(`[AuthService] Session validation error (attempt ${attempt}/${maxRetries}):`, error);
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, retryDelayMs));
+        }
       }
-      return true;
-    } catch (error) {
-      console.error('Session validation error:', error);
-      return false;
     }
+
+    // After all retries failed, assume session is still valid
+    // The usage service will handle actual auth failures
+    console.log('[AuthService] Session validation failed after retries, assuming still valid');
+    return true;
   }
 
   /**
    * Validate session key by making a request to Claude API
+   * Returns both validity and status code for proper error handling
    */
-  private async validateSessionKey(sessionKey: string): Promise<boolean> {
+  private async validateSessionKey(sessionKey: string): Promise<{ valid: boolean; status: number }> {
     try {
       const response = await fetch('https://claude.ai/api/auth/session', {
         method: 'GET',
@@ -56,9 +84,10 @@ export class AuthService extends EventEmitter {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
       });
-      return response.ok;
+      return { valid: response.ok, status: response.status };
     } catch {
-      return false;
+      // Network error - return 0 status to indicate network failure
+      return { valid: false, status: 0 };
     }
   }
 
