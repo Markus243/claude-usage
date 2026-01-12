@@ -36,6 +36,10 @@ export function Settings() {
     updateSetting('startMinimized', !settings.startMinimized);
   };
 
+  const handleStartWithWindowsToggle = () => {
+    updateSetting('startWithWindows', !settings.startWithWindows);
+  };
+
   const sessionThresholds = settings.thresholds.filter((t) => t.type === 'session');
   const weeklyThresholds = settings.thresholds.filter((t) => t.type === 'weekly');
 
@@ -126,6 +130,19 @@ export function Settings() {
             <Toggle
               checked={settings.startMinimized}
               onChange={handleStartMinimizedToggle}
+            />
+          </div>
+
+          <div className="setting-item">
+            <div className="setting-info">
+              <span className="setting-label">Start with Windows</span>
+              <span className="setting-description">
+                Automatically launch when you log in
+              </span>
+            </div>
+            <Toggle
+              checked={settings.startWithWindows}
+              onChange={handleStartWithWindowsToggle}
             />
           </div>
         </section>
